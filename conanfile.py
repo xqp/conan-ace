@@ -1,4 +1,6 @@
 from conans import ConanFile, tools, MSBuild
+import os
+import shutil
 
 class AceConan(ConanFile):
     name = "ACE"
@@ -29,7 +31,16 @@ class AceConan(ConanFile):
             sln_file = "ACE_wrappers/ACE_vs%s.sln" % vsString
             msbuild = MSBuild(self)
             msbuild.build(sln_file, targets=["ACE"])
-
+        if tools.os_info.is_linux:
+            f = open("ACE_wrappers/ace/config.h", "a")
+            f.write("""#include "ace/config-linux.h"
+""")
+            f.close()
+            shutil.copyfile("ACE_wrappers/ace/config-linux.h", "ACE_wrappers/ace/config.h") 
+            os.environ["ACE_ROOT"] = os.getcwd() + "/ACE_wrappers"
+            shutil.copyfile( os.getcwd() + "/ACE_wrappers/include/makeinclude/platform_linux.GNU",  os.getcwd() + "/ACE_wrappers/include/makeinclude/platform_macros.GNU") 
+            n_cores = tools.cpu_count()
+            self.run("cd ACE_wrappers && make -j%s" % n_cores )
 
     def package(self):
         self.copy("*", dst="include/ace", src="ACE_wrappers/ace")
